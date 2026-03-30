@@ -215,13 +215,40 @@
 
 <div class="modal-overlay" id="modal-trocar-senha">
     <div class="modal-box">
-        <h3>🔑 Alterar Senha Admin</h3>
+        <h3 id="trocar-senha-titulo">🔑 Alterar Senha</h3>
+        <input type="hidden" id="trocar-senha-tipo" value="admin">
         <label>Senha Atual</label><input type="password" id="senha-atual" placeholder="Senha atual">
         <label>Nova Senha</label><input type="password" id="senha-nova" placeholder="Nova senha">
         <label>Confirmar Nova Senha</label><input type="password" id="senha-confirma" placeholder="Confirmar nova senha">
         <div style="display:flex;gap:10px;margin-top:4px;">
             <button class="btn btn-success" style="flex:1" onclick="trocarSenha()">Salvar</button>
             <button class="btn" style="background:#eee;color:#333;flex:1;" onclick="fecharModal('modal-trocar-senha')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL ESCOLHER QUAL SENHA ALTERAR -->
+<div class="modal-overlay" id="modal-escolher-senha">
+    <div class="modal-box">
+        <h3>🔑 Qual senha deseja alterar?</h3>
+        <p style="color:#666;font-size:0.88rem;margin-bottom:20px;">Escolha abaixo qual senha você quer modificar.</p>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <button class="btn btn-admin-nav" style="padding:14px;font-size:0.9rem;text-transform:none;" onclick="fecharModal('modal-escolher-senha');abrirModalTrocarSenha('admin')">🔒 Senha do Administrador</button>
+            <button class="btn btn-kitchen-nav" style="padding:14px;font-size:0.9rem;text-transform:none;" onclick="fecharModal('modal-escolher-senha');abrirModalTrocarSenha('cozinha')">🍳 Senha da Cozinha</button>
+            <button class="btn" style="background:#eee;color:#333;padding:12px;" onclick="fecharModal('modal-escolher-senha')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL SENHA COZINHA -->
+<div class="modal-overlay" id="modal-senha-cozinha">
+    <div class="modal-box">
+        <h3>🍳 Acesso à Cozinha</h3>
+        <label>Senha da Cozinha</label>
+        <input type="password" id="input-senha-cozinha" placeholder="Digite a senha da cozinha">
+        <div style="display:flex;gap:10px;margin-top:4px;">
+            <button class="btn btn-kitchen-nav" style="flex:1" onclick="confirmarSenhaCozinha()">Entrar</button>
+            <button class="btn" style="background:#eee;color:#333;flex:1;" onclick="fecharModal('modal-senha-cozinha')">Cancelar</button>
         </div>
     </div>
 </div>
@@ -234,7 +261,7 @@
 <nav>
     <button class="btn btn-nav" onclick="irPara('tela-cardapio')">🍴 Cardápio</button>
     <button class="btn btn-nav" onclick="abrirCarrinho()">🛒 Carrinho <span id="cart-count">0</span></button>
-    <button class="btn btn-kitchen-nav" onclick="irPara('tela-cozinha')">📺 Cozinha</button>
+    <button class="btn btn-kitchen-nav" onclick="acessoCozinha()">📺 Cozinha</button>
     <button class="btn btn-admin-nav" onclick="acessoAdmin()">🔒 Admin</button>
 </nav>
 
@@ -294,7 +321,7 @@
     <section id="tela-admin" class="tela">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
             <button class="btn btn-outline" onclick="irPara('tela-cardapio')">⬅ Sair do Admin</button>
-            <button class="btn" style="background:#3a3a5c;color:#ccc;" onclick="abrirModal('modal-trocar-senha')">🔑 Alterar Senha</button>
+            <button class="btn" style="background:#3a3a5c;color:#ccc;" onclick="abrirModal('modal-escolher-senha')">🔑 Alterar Senha</button>
         </div>
         <div class="stats-grid">
             <div class="stat-card"><span class="stat-val" id="adm-vendas-total">R$ 0,00</span><span class="stat-lbl">Total em Vendas</span></div>
@@ -399,13 +426,42 @@ window.confirmarSenhaAdmin = () => {
 document.getElementById('input-senha-acesso').addEventListener('keydown', e => { if(e.key==='Enter') window.confirmarSenhaAdmin(); });
 
 window.trocarSenha = () => {
+    const tipo=document.getElementById('trocar-senha-tipo').value;
+    const chave = tipo==='cozinha' ? 'df_senha_cozinha' : SENHA_KEY;
+    const senhaAtual = tipo==='cozinha' ? (localStorage.getItem('df_senha_cozinha')||'cozinha') : getSenha();
     const atual=document.getElementById('senha-atual').value, nova=document.getElementById('senha-nova').value, conf=document.getElementById('senha-confirma').value;
-    if(atual!==getSenha()) return alert('Senha atual incorreta!');
+    if(atual!==senhaAtual) return alert('Senha atual incorreta!');
     if(nova.length<4) return alert('Mínimo 4 caracteres.');
     if(nova!==conf) return alert('Senhas não coincidem!');
-    localStorage.setItem(SENHA_KEY,nova); fecharModal('modal-trocar-senha'); mostrarToast('✅ Senha alterada!');
+    localStorage.setItem(chave,nova); fecharModal('modal-trocar-senha');
+    mostrarToast(`✅ Senha ${tipo==='cozinha'?'da cozinha':'do admin'} alterada!`);
     ['senha-atual','senha-nova','senha-confirma'].forEach(id=>document.getElementById(id).value='');
 };
+
+window.abrirModalTrocarSenha = (tipo) => {
+    document.getElementById('trocar-senha-tipo').value=tipo;
+    document.getElementById('trocar-senha-titulo').innerText = tipo==='cozinha' ? '🍳 Alterar Senha da Cozinha' : '🔒 Alterar Senha do Admin';
+    ['senha-atual','senha-nova','senha-confirma'].forEach(id=>document.getElementById(id).value='');
+    abrirModal('modal-trocar-senha');
+};
+
+window.acessoCozinha = () => {
+    document.getElementById('input-senha-cozinha').value='';
+    abrirModal('modal-senha-cozinha');
+    setTimeout(()=>document.getElementById('input-senha-cozinha').focus(),100);
+};
+
+window.confirmarSenhaCozinha = () => {
+    const senhaCozinha = localStorage.getItem('df_senha_cozinha') || 'cozinha';
+    const val = document.getElementById('input-senha-cozinha').value;
+    if(val===senhaCozinha){ fecharModal('modal-senha-cozinha'); irPara('tela-cozinha'); }
+    else {
+        document.getElementById('input-senha-cozinha').style.border='2px solid red';
+        setTimeout(()=>document.getElementById('input-senha-cozinha').style.border='',1500);
+        alert('Senha incorreta!');
+    }
+};
+document.getElementById('input-senha-cozinha').addEventListener('keydown', e=>{ if(e.key==='Enter') window.confirmarSenhaCozinha(); });
 
 // --- PRODUTOS ---
 window.adicionarProduto = async () => {
@@ -503,6 +559,8 @@ window.finalizarPedido = async() => {
     document.getElementById('badge-numero-pedido').innerText=`#${num}`;
     document.getElementById('comprovante-print').innerHTML=`<h3>Restaurante Deus é Fiel</h3><hr class="comprovante-divider"><p><b>PEDIDO Nº:</b> #${pedido.id}</p><p><b>CLIENTE:</b> ${pedido.cliente}</p><p><b>HORA:</b> ${pedido.hora}</p><p><b>PAGAMENTO:</b> ${pedido.pagamento}</p><hr class="comprovante-divider">${pedido.itens.map(i=>`<p>${i.nome} .......... R$ ${i.preco.toFixed(2)}</p>`).join('')}<hr class="comprovante-divider"><h4 style="text-align:right;">TOTAL: R$ ${pedido.total.toFixed(2)}</h4><p style="text-align:center;margin-top:16px;">✨ Deus é Fiel! Obrigado ✨</p>`;
     carrinho=[]; document.getElementById('cart-count').innerText='0';
+    document.getElementById('cliente-nome').value='';
+    document.getElementById('cliente-pagamento').selectedIndex=0;
     irPara('tela-comprovante');
 };
 
