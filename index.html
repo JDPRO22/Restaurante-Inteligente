@@ -441,6 +441,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const RID = 'deus-e-fiel';
 
 let produtos = [], pedidos = [], carrinho = [];
 const SENHA_KEY = 'df_senha_admin';
@@ -573,7 +574,7 @@ window.adicionarProduto = async () => {
     const fotoFile=document.getElementById('p-foto').files[0];
     if(!nome||isNaN(preco)||preco<=0) return alert('Preencha nome e preço!');
     const salvar = async(foto) => {
-        await addDoc(collection(db,'produtos'),{id:Date.now(),nome,preco,cat,promo,foto:foto||''});
+        await addDoc(collection(db,RID+'_produtos'),{id:Date.now(),nome,preco,cat,promo,foto:foto||''});
         document.getElementById('p-nome').value=''; document.getElementById('p-preco').value=''; document.getElementById('p-foto').value='';
         mostrarToast('✅ Produto cadastrado!');
     };
@@ -662,7 +663,7 @@ window.finalizarPedido = async() => {
         timestamp:agora.getTime(), status:'pendente'
     };
     let docRef;
-    try{ docRef = await addDoc(collection(db,'pedidos'),pedido); }
+    try{ docRef = await addDoc(collection(db,RID+'_pedidos'),pedido); }
     catch(e){ alert('Erro ao salvar pedido: '+e.message); return; }
     pedidoAtualFid = docRef.id; pedidoAtualStatus = 'pendente';
 
@@ -760,7 +761,7 @@ window.salvarConfig = async() => {
     const num=document.getElementById('adm-wa-num').value.replace(/\D/g,'');
     if(!num) return alert('Digite um número válido.');
     localStorage.setItem('df_wa',num);
-    await setDoc(doc(db,'config','restaurante'),{whatsapp:num});
+    await setDoc(doc(db,RID+'_config','restaurante'),{whatsapp:num});
     mostrarToast('✅ WhatsApp salvo!');
 };
 
@@ -782,8 +783,8 @@ window.zerarEtapa1 = () => {
 window.confirmarZerarSistema = async() => {
     try {
         const batch=writeBatch(db);
-        (await getDocs(collection(db,'pedidos'))).forEach(d=>batch.delete(d.ref));
-        (await getDocs(collection(db,'produtos'))).forEach(d=>batch.delete(d.ref));
+        (await getDocs(collection(db,RID+'_pedidos'))).forEach(d=>batch.delete(d.ref));
+        (await getDocs(collection(db,RID+'_produtos'))).forEach(d=>batch.delete(d.ref));
         await batch.commit();
         fecharModal('modal-zerar'); mostrarToast('🗑️ Sistema zerado!');
     } catch(e){ alert('Erro: '+e.message); }
@@ -814,7 +815,7 @@ window.confirmarExclusaoPedido = async() => {
 };
 
 // --- LISTENERS REALTIME ---
-onSnapshot(collection(db,'produtos'), snap => {
+onSnapshot(collection(db,RID+'_produtos'), snap => {
     produtos=snap.docs.map(d=>({firestoreId:d.id,...d.data()}));
     const ativa=document.querySelector('.tela.ativa')?.id;
     if(ativa==='tela-cardapio') renderCardapio();
@@ -822,7 +823,7 @@ onSnapshot(collection(db,'produtos'), snap => {
 });
 
 let idsAnteriores=new Set();
-onSnapshot(query(collection(db,'pedidos'),orderBy('timestamp','asc')), snap => {
+onSnapshot(query(collection(db,RID+'_pedidos'),orderBy('timestamp','asc')), snap => {
     const novosIds=new Set(snap.docs.map(d=>d.id));
     const temNovo=snap.docs.some(d=>!idsAnteriores.has(d.id)&&idsAnteriores.size>0);
     idsAnteriores=novosIds;
@@ -842,13 +843,13 @@ onSnapshot(query(collection(db,'pedidos'),orderBy('timestamp','asc')), snap => {
     if(ativa==='tela-admin') renderAdmin();
 });
 
-getDoc(doc(db,'config','restaurante')).then(d=>{
+getDoc(doc(db,RID+'_config','restaurante')).then(d=>{
     if(d.exists()&&d.data().whatsapp) localStorage.setItem('df_wa',d.data().whatsapp);
 }).catch(()=>{});
 
 async function init() {
     try {
-        const [ps,pds] = await Promise.all([getDocs(collection(db,'produtos')), getDocs(query(collection(db,'pedidos'),orderBy('timestamp','asc')))]);
+        const [ps,pds] = await Promise.all([getDocs(collection(db,RID+'_produtos')), getDocs(query(collection(db,RID+'_pedidos'),orderBy('timestamp','asc')))]);
         produtos=ps.docs.map(d=>({firestoreId:d.id,...d.data()}));
         pedidos=pds.docs.map(d=>({firestoreId:d.id,...d.data()}));
         idsAnteriores=new Set(pds.docs.map(d=>d.id));
