@@ -184,6 +184,65 @@
         .comanda-impressao .com-num { font-family: 'Playfair Display', serif; font-size: 2.4rem; font-weight: 900; text-align: center; color: #7b2d8b; margin: 6px 0; }
         .comanda-tag { background: #7b2d8b; color: white; display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 800; margin-bottom: 4px; }
 
+        /* === NOTIFICAÇÃO PRONTO BALCÃO === */
+        #balcao-notif-pronto {
+            display: none;
+            margin-top: 12px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: var(--primary);
+            border: 2px solid var(--success);
+            box-shadow: 0 0 18px rgba(31,160,94,0.35);
+            animation: fadeIn 0.4s ease;
+        }
+        #balcao-notif-pronto.ativa { display: block; }
+        .balcao-notif-inner {
+            padding: 16px 18px;
+            text-align: center;
+        }
+        .balcao-notif-icon {
+            font-size: 2.4rem;
+            display: block;
+            margin-bottom: 6px;
+            animation: bounce 0.6s ease infinite alternate;
+        }
+        .balcao-notif-titulo {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.3rem;
+            color: var(--accent2);
+            font-weight: 900;
+            margin-bottom: 4px;
+        }
+        .balcao-notif-sub {
+            color: rgba(255,255,255,0.65);
+            font-size: 0.82rem;
+            margin-bottom: 12px;
+        }
+        .balcao-notif-num {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.8rem;
+            font-weight: 900;
+            color: var(--accent);
+            background: rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 6px 20px;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+        .btn-fechar-notif {
+            background: var(--success);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 9px 22px;
+            font-weight: 800;
+            font-size: 0.85rem;
+            cursor: pointer;
+            font-family: 'Nunito', sans-serif;
+            width: 100%;
+        }
+        .btn-fechar-notif:hover { background: #17844e; }
+
         @media print {
             body * { visibility: hidden !important; }
             .comanda-impressao, .comanda-impressao * { visibility: visible !important; }
@@ -557,6 +616,17 @@
                 </div>
                 <button class="btn-balcao-finalizar" onclick="finalizarPedidoBalcao()">🖨️ Gerar Comanda &amp; Enviar Cozinha</button>
                 <button class="btn" onclick="limparCarrinhoBalcao()" style="width:100%;margin-top:8px;background:#eee;color:#888;padding:10px;font-size:0.8rem;">🗑 Limpar Tudo</button>
+
+                <!-- Notificação discreta de pedido pronto para o balcão -->
+                <div id="balcao-notif-pronto">
+                    <div class="balcao-notif-inner">
+                        <span class="balcao-notif-icon">🔔</span>
+                        <div class="balcao-notif-titulo">Pedido Pronto!</div>
+                        <div id="balcao-notif-num" class="balcao-notif-num">#—</div>
+                        <div id="balcao-notif-cliente" class="balcao-notif-sub">Pronto para retirada</div>
+                        <button class="btn-fechar-notif" onclick="fecharNotifBalcao()">✅ Entendido</button>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -619,6 +689,14 @@ window.mostrarToast = (msg) => {
 // --- TELA PEDIDO PRONTO ---
 let pedidoAtualFid = null;
 let pedidoAtualStatus = null;
+let pedidoBalcaoFid = null;
+let pedidoBalcaoStatus = null;
+
+window.fecharNotifBalcao = () => {
+    document.getElementById('balcao-notif-pronto').classList.remove('ativa');
+    pedidoBalcaoFid = null;
+    pedidoBalcaoStatus = null;
+};
 
 window.fecharPedidoPronto = () => {
     document.getElementById('tela-pedido-pronto').classList.remove('ativa');
@@ -973,6 +1051,19 @@ onSnapshot(query(collection(db,'pedidos'),orderBy('timestamp','asc')), snap => {
             tocarSom();
             document.querySelectorAll('.tela').forEach(t=>t.classList.remove('ativa'));
             document.getElementById('tela-pedido-pronto').classList.add('ativa');
+        }
+    }
+    // Notificação discreta para o balcão
+    if(pedidoBalcaoFid) {
+        const pedBalcao = pedidos.find(p=>p.firestoreId===pedidoBalcaoFid);
+        if(pedBalcao && pedBalcao.status==='pronto' && pedidoBalcaoStatus!=='pronto') {
+            pedidoBalcaoStatus = 'pronto';
+            tocarSom();
+            document.getElementById('balcao-notif-num').innerText = `#${pedBalcao.id}`;
+            document.getElementById('balcao-notif-cliente').innerText = pedBalcao.cliente ? `${pedBalcao.cliente} — Pronto para retirada` : 'Pronto para retirada';
+            document.getElementById('balcao-notif-pronto').classList.add('ativa');
+            // Scroll suave até a notificação
+            document.getElementById('balcao-notif-pronto').scrollIntoView({behavior:'smooth', block:'center'});
         }
     }
     if(temNovo) tocarSom();
@@ -1335,6 +1426,12 @@ window.finalizarPedidoBalcao = async () => {
         alert('Erro ao salvar pedido: ' + e.message);
         return;
     }
+
+    // Rastreia pedido do balcão para receber notificação de pronto
+    pedidoBalcaoFid = docRef.id;
+    pedidoBalcaoStatus = 'pendente';
+    // Esconde notificação anterior se houver
+    document.getElementById('balcao-notif-pronto').classList.remove('ativa');
 
     // Gera comanda para impressão
     const itensHtml = pedido.itens.map(i => {
